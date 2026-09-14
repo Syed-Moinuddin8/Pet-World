@@ -430,9 +430,8 @@ export const SalesHistoryView: React.FC<SalesHistoryViewProps> = ({
                   </th>
                 )}
                 <th className="px-4 py-3">Invoice #</th>
-                <th className="px-4 py-3">Date & Time</th>
+                <th className="px-4 py-3">Date</th>
                 <th className="px-4 py-3">Branch & Cashier</th>
-                <th className="px-4 py-3">Customer</th>
                 <th className="px-4 py-3">Items</th>
                 <th className="px-4 py-3 text-right">Grand Total</th>
                 <th className="px-4 py-3 text-center">Status</th>
@@ -442,7 +441,7 @@ export const SalesHistoryView: React.FC<SalesHistoryViewProps> = ({
             <tbody className="divide-y divide-[#F2ECE4]">
               {filteredSales.length === 0 ? (
                 <tr>
-                  <td colSpan={isOwner ? 9 : 8} className="py-12">
+                  <td colSpan={isOwner ? 8 : 7} className="py-12">
                     <PetEmptyState
                       title="No sales transactions found"
                       description="Process sales at the POS counter to generate records."
@@ -480,17 +479,10 @@ export const SalesHistoryView: React.FC<SalesHistoryViewProps> = ({
                       </td>
                       <td className="px-4 py-3 text-[#5B7065]">
                         <span>{s.date}</span>
-                        <span className="block text-[10px] text-[#8C9B90]">{s.time}</span>
                       </td>
                       <td className="px-4 py-3">
                         <span className="font-bold text-[#264653] block">{s.branchName}</span>
                         <span className="text-[10px] text-[#7C9082]">Cashier: {s.staffName}</span>
-                      </td>
-                      <td className="px-4 py-3">
-                        <span className="font-bold text-[#264653] block">{s.customerName || 'Walk-in'}</span>
-                        {s.customerPhone && (
-                          <span className="text-[10px] text-[#7C9082]">{s.customerPhone}</span>
-                        )}
                       </td>
                       <td className="px-4 py-3">
                         <span className="font-bold text-[#264653]">

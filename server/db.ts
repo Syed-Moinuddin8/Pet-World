@@ -485,9 +485,10 @@ class PetWorldDatabase {
 
   /**
    * ASYNC INITIALIZATION - Call this after constructor to load from Supabase
+   * SUPABASE-ONLY MODE: Only loads data from Supabase, no seed data fallback
    */
   public async initializeAsync(): Promise<void> {
-    console.log('[DATABASE] Starting async initialization...');
+    console.log('[DATABASE] Starting async initialization (SUPABASE-ONLY MODE)...');
     
     try {
       // TRY TO LOAD FROM SUPABASE FIRST
@@ -499,134 +500,78 @@ class PetWorldDatabase {
         
         // Merge Supabase data into current data
         Object.assign(this.data, {
-          branches: supabaseData.branches || this.data.branches,
-          products: (supabaseData.products || this.data.products).map((p: any) => ({
+          branches: supabaseData.branches || INITIAL_BRANCHES.map((b) => ({ ...b })),
+          products: (supabaseData.products || []).map((p: any) => ({
             ...p,
             imageUrl: p.imageUrl || resolveProductImageUrl(p),
           })),
-          categories: supabaseData.categories || this.data.categories,
-          inventory: supabaseData.inventory || this.data.inventory,
-          suppliers: supabaseData.suppliers || this.data.suppliers,
-          staff: supabaseData.staff || this.data.staff,
-          purchases: supabaseData.purchases || this.data.purchases,
-          purchaseBills: supabaseData.purchaseBills || this.data.purchaseBills,
-          purchaseAllocations: supabaseData.purchaseAllocations || this.data.purchaseAllocations,
-          sales: supabaseData.sales || this.data.sales,
-          stockMovements: supabaseData.stockMovements || this.data.stockMovements,
-          attendance: supabaseData.attendance || this.data.attendance,
-          salaries: supabaseData.salaries || this.data.salaries,
-          salaryAdvances: supabaseData.salaryAdvances || this.data.salaryAdvances,
-          notifications: supabaseData.notifications || this.data.notifications,
-          settings: supabaseData.settings || this.data.settings,
+          categories: supabaseData.categories || [...DEFAULT_PRODUCT_CATEGORIES],
+          inventory: supabaseData.inventory || [],
+          suppliers: supabaseData.suppliers || [],
+          staff: supabaseData.staff || [],
+          purchases: supabaseData.purchases || [],
+          purchaseBills: supabaseData.purchaseBills || [],
+          purchaseAllocations: supabaseData.purchaseAllocations || [],
+          sales: supabaseData.sales || [],
+          stockMovements: supabaseData.stockMovements || [],
+          attendance: supabaseData.attendance || [],
+          salaries: supabaseData.salaries || [],
+          salaryAdvances: supabaseData.salaryAdvances || [],
+          notifications: supabaseData.notifications || [],
+          settings: supabaseData.settings || INITIAL_SETTINGS,
         });
         
         this.rebuildBarcodeIndex();
         console.log('[DATABASE] Using Supabase as primary data source');
+        console.log(`[DATABASE] Loaded: ${this.data.sales.length} sales, ${this.data.products.length} products, ${this.data.staff.length} staff`);
+        return;
+      } else {
+        console.warn('[DATABASE] ⚠️ Supabase returned no data - using minimal structure only');
+        // No data in Supabase - use minimal empty structure
+        this.data = {
+          branches: INITIAL_BRANCHES.map((b) => ({ ...b })),
+          products: [],
+          categories: [...DEFAULT_PRODUCT_CATEGORIES],
+          inventory: [],
+          suppliers: [],
+          staff: [],
+          purchases: [],
+          purchaseBills: [],
+          purchaseAllocations: [],
+          sales: [],
+          stockMovements: [],
+          attendance: [],
+          salaries: [],
+          salaryAdvances: [],
+          notifications: [],
+          settings: INITIAL_SETTINGS,
+        };
+        this.rebuildBarcodeIndex();
+        console.log('[DATABASE] Empty database initialized - waiting for Supabase data');
         return;
       }
     } catch (err) {
-      console.warn('[DATABASE] Failed to load from Supabase:', err);
-    }
-
-    // FALLBACK: Try to load from JSON file only if Supabase fails
-    try {
-      console.log('[DATABASE] Supabase not available, checking local file...');
-      const fileToRead = fs.existsSync(DB_FILE)
-        ? DB_FILE
-        : fs.existsSync(BUNDLED_DB_FILE)
-        ? BUNDLED_DB_FILE
-        : null;
-
-      if (fileToRead) {
-        const raw = fs.readFileSync(fileToRead, 'utf-8');
-        const parsed: DatabaseSchema = JSON.parse(raw);
-        
-        // Process and merge the file data
-        if (!parsed.salaries || parsed.salaries.length < 50 || parsed.salaries.some((s) => s.month === '2026-09')) {
-          parsed.salaries = this.generateInitialSalaries();
-        }
-        if (!parsed.salaryAdvances || parsed.salaryAdvances.length === 0) {
-          parsed.salaryAdvances = this.generateInitialSalaryAdvances();
-        }
-        if (parsed.salaryAdvances && parsed.salaries) {
-          const advList = parsed.salaryAdvances;
-          parsed.salaries.forEach((s) => {
-            const cleanMonth = (s.month || '').toLowerCase();
-            const staffAdvances = advList.filter(
-              (a) => a.staffId === s.staffId && (a.month === s.month || (cleanMonth.includes('sep') && a.month.toLowerCase().includes('sep')) || (cleanMonth.includes('aug') && a.month.toLowerCase().includes('aug')))
-            );
-            s.advances = staffAdvances;
-            s.advance = staffAdvances.reduce((sum, a) => sum + a.amount, 0);
-            s.netSalary = Math.max(0, s.basicSalary + s.allowances - s.deductions + s.bonus + s.overtime - s.advance);
-          });
-        }
-        if (parsed.purchases && parsed.products) {
-          const prodMap = new Map(parsed.products.map((p) => [p.id, p]));
-          parsed.purchases.forEach((pur) => {
-            if (pur.items) {
-              pur.items.forEach((it) => {
-                const pr = prodMap.get(it.productId);
-                if (!it.company) {
-                  it.company = pr?.company || pr?.brand || pur.company || 'General';
-                }
-                if (!it.brand) {
-                  it.brand = pr?.brand || it.company;
-                }
-              });
-            }
-            if (!pur.company) {
-              const firstItemCompany = pur.items?.find((i) => i.company && i.company !== 'General')?.company;
-              if (firstItemCompany) {
-                pur.company = firstItemCompany;
-              } else if (pur.supplierName?.toLowerCase().includes('royal canin')) {
-                pur.company = 'Royal Canin';
-              } else if (pur.supplierName?.toLowerCase().includes('mars')) {
-                pur.company = 'Pedigree (Mars Petcare)';
-              } else if (pur.supplierName?.toLowerCase().includes('drools')) {
-                pur.company = 'Drools Pet Food';
-              } else {
-                pur.company = 'General / Multi-Brand';
-              }
-            }
-          });
-        }
-        if (parsed.products && Array.isArray(parsed.products)) {
-          parsed.products.forEach((p) => {
-            if (!p.imageUrl || !p.imageUrl.startsWith('http')) {
-              p.imageUrl = resolveProductImageUrl(p);
-            }
-          });
-        }
-        parsed.branches = INITIAL_BRANCHES.map((b) => ({ ...b }));
-        if (!parsed.categories || !Array.isArray(parsed.categories)) {
-          const catSet = new Set<string>(DEFAULT_PRODUCT_CATEGORIES);
-          if (parsed.products && Array.isArray(parsed.products)) {
-            parsed.products.forEach((p) => {
-              if (p.category) catSet.add(p.category.trim());
-            });
-          }
-          parsed.categories = Array.from(catSet);
-        }
-        
-        Object.assign(this.data, parsed);
-        this.rebuildBarcodeIndex();
-        console.log('[DATABASE] Loaded from local file as fallback');
-        
-        // Sync to Supabase after loading from file
-        try {
-          console.log('[DATABASE] Syncing file data to Supabase for future use...');
-          await syncDatabaseToSupabase(this.data);
-        } catch (syncErr) {
-          console.warn('[DATABASE] Could not sync to Supabase:', syncErr);
-        }
-      } else {
-        console.log('[DATABASE] No local file found, using seed data');
-        this.data = this.generateDefaultData();
-        this.rebuildBarcodeIndex();
-      }
-    } catch (e) {
-      console.warn('[DATABASE] Could not read saved database, loading defaults:', e);
-      this.data = this.generateDefaultData();
+      console.error('[DATABASE] ❌ Failed to load from Supabase:', err);
+      console.warn('[DATABASE] Using minimal empty structure');
+      // Error loading from Supabase - use minimal empty structure
+      this.data = {
+        branches: INITIAL_BRANCHES.map((b) => ({ ...b })),
+        products: [],
+        categories: [...DEFAULT_PRODUCT_CATEGORIES],
+        inventory: [],
+        suppliers: [],
+        staff: [],
+        purchases: [],
+        purchaseBills: [],
+        purchaseAllocations: [],
+        sales: [],
+        stockMovements: [],
+        attendance: [],
+        salaries: [],
+        salaryAdvances: [],
+        notifications: [],
+        settings: INITIAL_SETTINGS,
+      };
       this.rebuildBarcodeIndex();
     }
   }
