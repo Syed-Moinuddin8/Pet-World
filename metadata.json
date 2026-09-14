@@ -1,0 +1,10 @@
+{
+  "name": "Remix Remix Remix Remix Copy of Pet World - Multi-Branch Pet Shop Management \u0026 POS",
+  "description": "Enterprise multi-branch pet shop management, inventory, purchase allocation, staff, real-time point-of-sale counter, and audit trail system.",
+  "requestFramePermissions": [
+    "camera"
+  ],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
