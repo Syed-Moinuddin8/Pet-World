@@ -13,6 +13,7 @@ import {
   Copy,
   Check,
   ExternalLink,
+  Calendar,
 } from 'lucide-react';
 import { Branch, User } from '../types.js';
 import { PawIcon } from './PetAvatars.js';
@@ -39,6 +40,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ branches, currentUse
   const [isSyncing, setIsSyncing] = useState(false);
   const [syncMessage, setSyncMessage] = useState<string | null>(null);
   const [copiedSchema, setCopiedSchema] = useState(false);
+  const [isFixingDates, setIsFixingDates] = useState(false);
+  const [fixDatesMessage, setFixDatesMessage] = useState<string | null>(null);
 
   useEffect(() => {
     fetch('/api/supabase/status')
@@ -74,6 +77,39 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ branches, currentUse
       setSyncMessage(`Sync error: ${e.message || 'Network error'}`);
     } finally {
       setIsSyncing(false);
+    }
+  };
+
+  const handleFixSalesDates = async () => {
+    if (!window.confirm('This will update all sales with future dates (2026+) to recent dates (2-7 days ago). Continue?')) {
+      return;
+    }
+    
+    setIsFixingDates(true);
+    setFixDatesMessage(null);
+    try {
+      const res = await fetch('/api/sales/fix-dates', {
+        method: 'POST',
+        headers: {
+          'x-user-id': currentUser.id,
+          'x-user-role': currentUser.role,
+          'Content-Type': 'application/json',
+        },
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setFixDatesMessage(`✅ Updated ${data.updatedCount} of ${data.totalSales} sales to current dates!`);
+        // Auto-sync to Supabase after fixing
+        setTimeout(() => {
+          handleSyncSupabase();
+        }, 1000);
+      } else {
+        setFixDatesMessage(`❌ ${data.error || 'Failed to fix dates'}`);
+      }
+    } catch (e: any) {
+      setFixDatesMessage(`❌ Error: ${e.message || 'Network error'}`);
+    } finally {
+      setIsFixingDates(false);
     }
   };
 
@@ -267,6 +303,31 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ branches, currentUse
             {syncMessage && (
               <div className="p-2.5 rounded-xl bg-white border border-[#EADDCE] text-xs font-medium text-[#264653]">
                 {syncMessage}
+              </div>
+            )}
+
+            {/* Fix Sales Dates Utility */}
+            <div className="flex items-start gap-3 justify-between p-3 rounded-2xl bg-amber-50/50 border border-amber-200">
+              <div>
+                <span className="font-bold text-[#264653] block">🔧 Fix Legacy Sales Dates</span>
+                <span className="text-[11px] text-[#7C9082]">
+                  Convert old demo sales with 2026 dates to recent dates (2-7 days ago). Run this once after deployment.
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={handleFixSalesDates}
+                disabled={isFixingDates}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-600 hover:bg-amber-700 disabled:opacity-50 text-white text-xs font-bold transition-all shrink-0 active:scale-98"
+              >
+                <Calendar className={`w-3.5 h-3.5 ${isFixingDates ? 'animate-pulse' : ''}`} />
+                <span>{isFixingDates ? 'Fixing...' : 'Fix Dates Now'}</span>
+              </button>
+            </div>
+
+            {fixDatesMessage && (
+              <div className="p-2.5 rounded-xl bg-white border border-[#EADDCE] text-xs font-medium text-[#264653]">
+                {fixDatesMessage}
               </div>
             )}
           </div>

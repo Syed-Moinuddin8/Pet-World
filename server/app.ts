@@ -806,6 +806,60 @@ app.delete('/api/sales/:id', (req, res) => {
   }
 });
 
+// UTILITY: Fix Sales Dates (Convert old 2026 dates to recent dates)
+app.post('/api/sales/fix-dates', (req, res) => {
+  try {
+    const user = getRequestUser(req);
+    if (user.role !== 'OWNER') {
+      return res.status(403).json({ error: 'Only Owner can run database utilities.' });
+    }
+
+    const allSales = db.getSales({});
+    let updatedCount = 0;
+    
+    allSales.forEach((sale) => {
+      // Check if the sale has a future date (2026+) or very old date (before 2024)
+      const saleYear = parseInt(sale.date.split('-')[0]);
+      
+      if (saleYear >= 2026 || saleYear < 2024) {
+        // Calculate days to subtract to make it recent (2-7 days ago)
+        const randomDaysAgo = Math.floor(Math.random() * 6) + 2; // 2-7 days ago
+        const newDate = new Date();
+        newDate.setDate(newDate.getDate() - randomDaysAgo);
+        
+        // Generate random time between 9 AM and 8 PM
+        const randomHour = Math.floor(Math.random() * 11) + 9; // 9-19
+        const randomMinute = Math.floor(Math.random() * 60);
+        const randomSecond = Math.floor(Math.random() * 60);
+        newDate.setHours(randomHour, randomMinute, randomSecond, 0);
+        
+        // Update the sale
+        db.updateSaleDate(sale.id, {
+          date: newDate.toISOString().split('T')[0],
+          time: newDate.toLocaleTimeString('en-US', { 
+            hour: 'numeric', 
+            minute: '2-digit', 
+            second: '2-digit', 
+            hour12: true 
+          }),
+          timestamp: newDate.getTime(),
+        });
+        
+        updatedCount++;
+      }
+    });
+
+    res.json({ 
+      success: true, 
+      message: `Updated ${updatedCount} sales record(s) to recent dates`,
+      totalSales: allSales.length,
+      updatedCount 
+    });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Staff
 app.get('/api/staff', (req, res) => {
   res.json(db.getStaff());

@@ -2037,6 +2037,19 @@ class PetWorldDatabase {
     }
   }
 
+  // UPDATE SALE DATE/TIME (Utility for fixing legacy data)
+  public updateSaleDate(saleId: string, dateInfo: { date: string; time: string; timestamp: number }): Sale {
+    const sale = this.data.sales.find((s) => s.id === saleId);
+    if (!sale) throw new Error('Sale not found');
+    
+    sale.date = dateInfo.date;
+    sale.time = dateInfo.time;
+    sale.timestamp = dateInfo.timestamp;
+    
+    this.persist();
+    return sale;
+  }
+
   // Purchases & Bills
   public getPurchases(): Purchase[] {
     return this.data.purchases;
