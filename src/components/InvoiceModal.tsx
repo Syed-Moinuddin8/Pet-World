@@ -68,7 +68,7 @@ export const InvoiceModal: React.FC<InvoiceModalProps> = ({ sale, onClose, branc
                 {sale.invoiceNumber}
               </div>
               <div className="text-xs text-[#7C9082] mt-0.5">
-                Date: {sale.date} • {sale.time}
+                Date: {sale.date}
               </div>
             </div>
           </div>

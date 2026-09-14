@@ -517,7 +517,7 @@ export const ThermalReceiptModal: React.FC<ThermalReceiptModalProps> = ({
                 <div className="flex justify-between">
                   <span>Date:</span>
                   <span>
-                    {sale.date} {sale.time}
+                    {sale.date}
                   </span>
                 </div>
               </div>
