@@ -843,9 +843,24 @@ app.delete('/api/staff/:id', (req, res) => {
     if (user.role !== 'OWNER') {
       return res.status(403).json({ error: 'Only Owner can delete staff members.' });
     }
-    db.deleteStaff(req.params.id);
-    res.json({ success: true, message: 'Staff member deleted successfully' });
+    
+    const staffId = req.params.id;
+    console.log(`[DELETE STAFF] Attempting to delete staff with ID: ${staffId}`);
+    
+    // Check if staff exists before deletion
+    const staff = db.getStaffById(staffId);
+    if (!staff) {
+      console.log(`[DELETE STAFF] Staff not found: ${staffId}`);
+      return res.status(404).json({ error: 'Staff member not found' });
+    }
+    
+    console.log(`[DELETE STAFF] Found staff: ${staff.name} (${staffId})`);
+    db.deleteStaff(staffId);
+    console.log(`[DELETE STAFF] Successfully deleted staff: ${staff.name}`);
+    
+    res.json({ success: true, message: 'Staff member deleted successfully', deletedStaff: staff.name });
   } catch (err: any) {
+    console.error('[DELETE STAFF] Error:', err.message);
     res.status(400).json({ error: err.message });
   }
 });

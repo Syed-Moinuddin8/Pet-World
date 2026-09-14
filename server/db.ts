@@ -2113,6 +2113,10 @@ class PetWorldDatabase {
     return staff;
   }
 
+  public getStaffById(id: string): Staff | undefined {
+    return this.data.staff.find((s) => s.id === id);
+  }
+
   public deleteStaff(id: string): void {
     const index = this.data.staff.findIndex((s) => s.id === id);
     if (index === -1) throw new Error('Staff not found');
