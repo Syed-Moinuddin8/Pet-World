@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <defs>
+    <linearGradient id="pawGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#E76F51;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#D97757;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  
+  <!-- Paw print icon -->
+  <g transform="translate(50, 50)">
+    <!-- Main pad -->
+    <ellipse cx="0" cy="8" rx="18" ry="20" fill="url(#pawGradient)"/>
+    
+    <!-- Top left toe -->
+    <ellipse cx="-15" cy="-12" rx="9" ry="12" fill="url(#pawGradient)"/>
+    
+    <!-- Top middle toe -->
+    <ellipse cx="0" cy="-16" rx="9" ry="12" fill="url(#pawGradient)"/>
+    
+    <!-- Top right toe -->
+    <ellipse cx="15" cy="-12" rx="9" ry="12" fill="url(#pawGradient)"/>
+    
+    <!-- Bottom toe -->
+    <ellipse cx="0" cy="30" rx="8" ry="10" fill="url(#pawGradient)"/>
+  </g>
+</svg>
