@@ -110,8 +110,13 @@ export const StaffManagementView: React.FC<StaffManagementViewProps> = ({
     try {
       await onDeleteStaff(deletingStaff.id);
       setDeletingStaff(null);
+      // Show success message
+      alert(`Successfully deleted ${deletingStaff.name}`);
     } catch (err: any) {
-      alert('Failed to delete staff: ' + err.message);
+      console.error('Delete staff error:', err);
+      const errorMessage = err.message || 'Failed to delete staff member';
+      alert(`Failed to delete staff: ${errorMessage}`);
+      setDeletingStaff(null);
     } finally {
       setLoading(false);
     }

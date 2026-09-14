@@ -2124,12 +2124,16 @@ class PetWorldDatabase {
     // Remove the staff member
     this.data.staff.splice(index, 1);
     
-    // Optionally: Clean up related data (attendance, salary records, etc.)
+    // Clean up related data (attendance, salary records, etc.)
     // Remove attendance records for this staff member
-    this.data.attendance = this.data.attendance.filter((a) => a.staffId !== id);
+    if (this.data.attendance && Array.isArray(this.data.attendance)) {
+      this.data.attendance = this.data.attendance.filter((a) => a.staffId !== id);
+    }
     
     // Remove salary records for this staff member
-    this.data.salaryRecords = this.data.salaryRecords.filter((s) => s.staffId !== id);
+    if (this.data.salaryRecords && Array.isArray(this.data.salaryRecords)) {
+      this.data.salaryRecords = this.data.salaryRecords.filter((s) => s.staffId !== id);
+    }
     
     this.persist();
   }
