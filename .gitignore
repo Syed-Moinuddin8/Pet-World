@@ -6,3 +6,6 @@ coverage/
 *.log
 .env*
 !.env.example
+
+# Database files (data now stored in Supabase)
+data/petworld_db.json

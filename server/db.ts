@@ -455,7 +455,82 @@ class PetWorldDatabase {
   }
 
   private loadInitialData(): DatabaseSchema {
+    // This is now just a synchronous fallback - actual data loads from Supabase in initializeAsync()
+    console.log('[DATABASE] Initializing with minimal fallback data...');
+    
+    const defaultData: DatabaseSchema = {
+      branches: INITIAL_BRANCHES,
+      products: INITIAL_PRODUCTS.map((p) => ({
+        ...p,
+        imageUrl: p.imageUrl || resolveProductImageUrl(p),
+      })),
+      categories: [...DEFAULT_PRODUCT_CATEGORIES],
+      inventory: [],
+      suppliers: INITIAL_SUPPLIERS,
+      staff: [],
+      purchases: [],
+      purchaseBills: [],
+      purchaseAllocations: [],
+      sales: [],
+      stockMovements: [],
+      attendance: [],
+      salaries: [],
+      salaryAdvances: [],
+      notifications: [],
+      settings: INITIAL_SETTINGS,
+    };
+
+    return defaultData;
+  }
+
+  /**
+   * ASYNC INITIALIZATION - Call this after constructor to load from Supabase
+   */
+  public async initializeAsync(): Promise<void> {
+    console.log('[DATABASE] Starting async initialization...');
+    
     try {
+      // TRY TO LOAD FROM SUPABASE FIRST
+      console.log('[DATABASE] Attempting to load from Supabase...');
+      const supabaseData = await loadDatabaseFromSupabase();
+      
+      if (supabaseData && Object.keys(supabaseData).length > 0) {
+        console.log('[DATABASE] ✅ Loaded data from Supabase successfully!');
+        
+        // Merge Supabase data into current data
+        Object.assign(this.data, {
+          branches: supabaseData.branches || this.data.branches,
+          products: (supabaseData.products || this.data.products).map((p: any) => ({
+            ...p,
+            imageUrl: p.imageUrl || resolveProductImageUrl(p),
+          })),
+          categories: supabaseData.categories || this.data.categories,
+          inventory: supabaseData.inventory || this.data.inventory,
+          suppliers: supabaseData.suppliers || this.data.suppliers,
+          staff: supabaseData.staff || this.data.staff,
+          purchases: supabaseData.purchases || this.data.purchases,
+          purchaseBills: supabaseData.purchaseBills || this.data.purchaseBills,
+          purchaseAllocations: supabaseData.purchaseAllocations || this.data.purchaseAllocations,
+          sales: supabaseData.sales || this.data.sales,
+          stockMovements: supabaseData.stockMovements || this.data.stockMovements,
+          attendance: supabaseData.attendance || this.data.attendance,
+          salaries: supabaseData.salaries || this.data.salaries,
+          salaryAdvances: supabaseData.salaryAdvances || this.data.salaryAdvances,
+          notifications: supabaseData.notifications || this.data.notifications,
+          settings: supabaseData.settings || this.data.settings,
+        });
+        
+        this.rebuildBarcodeIndex();
+        console.log('[DATABASE] Using Supabase as primary data source');
+        return;
+      }
+    } catch (err) {
+      console.warn('[DATABASE] Failed to load from Supabase:', err);
+    }
+
+    // FALLBACK: Try to load from JSON file only if Supabase fails
+    try {
+      console.log('[DATABASE] Supabase not available, checking local file...');
       const fileToRead = fs.existsSync(DB_FILE)
         ? DB_FILE
         : fs.existsSync(BUNDLED_DB_FILE)
@@ -465,15 +540,14 @@ class PetWorldDatabase {
       if (fileToRead) {
         const raw = fs.readFileSync(fileToRead, 'utf-8');
         const parsed: DatabaseSchema = JSON.parse(raw);
-        // Refresh salaries demo data if old format or missing months
+        
+        // Process and merge the file data
         if (!parsed.salaries || parsed.salaries.length < 50 || parsed.salaries.some((s) => s.month === '2026-09')) {
           parsed.salaries = this.generateInitialSalaries();
         }
-        // Initialize salary advances if missing or empty
         if (!parsed.salaryAdvances || parsed.salaryAdvances.length === 0) {
           parsed.salaryAdvances = this.generateInitialSalaryAdvances();
         }
-        // Sync advances to salaries
         if (parsed.salaryAdvances && parsed.salaries) {
           const advList = parsed.salaryAdvances;
           parsed.salaries.forEach((s) => {
@@ -486,7 +560,6 @@ class PetWorldDatabase {
             s.netSalary = Math.max(0, s.basicSalary + s.allowances - s.deductions + s.bonus + s.overtime - s.advance);
           });
         }
-        // Ensure purchases and items have company backfilled if missing
         if (parsed.purchases && parsed.products) {
           const prodMap = new Map(parsed.products.map((p) => [p.id, p]));
           parsed.purchases.forEach((pur) => {
@@ -524,7 +597,6 @@ class PetWorldDatabase {
             }
           });
         }
-        // Always enforce the fixed store branches regardless of database file contents
         parsed.branches = INITIAL_BRANCHES.map((b) => ({ ...b }));
         if (!parsed.categories || !Array.isArray(parsed.categories)) {
           const catSet = new Set<string>(DEFAULT_PRODUCT_CATEGORIES);
@@ -535,12 +607,31 @@ class PetWorldDatabase {
           }
           parsed.categories = Array.from(catSet);
         }
-        return parsed;
+        
+        Object.assign(this.data, parsed);
+        this.rebuildBarcodeIndex();
+        console.log('[DATABASE] Loaded from local file as fallback');
+        
+        // Sync to Supabase after loading from file
+        try {
+          console.log('[DATABASE] Syncing file data to Supabase for future use...');
+          await syncDatabaseToSupabase(this.data);
+        } catch (syncErr) {
+          console.warn('[DATABASE] Could not sync to Supabase:', syncErr);
+        }
+      } else {
+        console.log('[DATABASE] No local file found, using seed data');
+        this.data = this.generateDefaultData();
+        this.rebuildBarcodeIndex();
       }
     } catch (e) {
-      console.warn('Could not read saved database, loading defaults:', e);
+      console.warn('[DATABASE] Could not read saved database, loading defaults:', e);
+      this.data = this.generateDefaultData();
+      this.rebuildBarcodeIndex();
     }
+  }
 
+  private generateDefaultData(): DatabaseSchema {
     const defaultData: DatabaseSchema = {
       branches: INITIAL_BRANCHES,
       products: INITIAL_PRODUCTS.map((p) => ({
@@ -2527,3 +2618,8 @@ class PetWorldDatabase {
 }
 
 export const db = new PetWorldDatabase();
+
+// Initialize database asynchronously (loads from Supabase)
+db.initializeAsync().catch((err) => {
+  console.error('[DATABASE] Async initialization failed:', err);
+});
