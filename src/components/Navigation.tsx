@@ -79,7 +79,6 @@ export const Navigation: React.FC<NavigationProps> = ({
     { id: 'attendance', label: 'Attendance', icon: Clock, badge: undefined },
     { id: 'salary', label: 'Salary', icon: Banknote, badge: undefined },
     { id: 'allocation-history', label: 'Allocation History', icon: FileCheck2, badge: undefined },
-    { id: 'settings', label: 'Settings', icon: Settings, badge: undefined },
   ];
 
   const staffNavItems = [
