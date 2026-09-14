@@ -115,6 +115,7 @@ export const InventoryManagement: React.FC<InventoryManagementProps> = ({
   const [showAddProductModal, setShowAddProductModal] = useState(false);
   const [showAddInventoryModal, setShowAddInventoryModal] = useState(false);
   const [showQuickScanner, setShowQuickScanner] = useState(false);
+  const [scanForProductForm, setScanForProductForm] = useState(false);
 
   // Category Management Modals state
   const [showCreateCategoryModal, setShowCreateCategoryModal] = useState(false);
@@ -1447,6 +1448,43 @@ export const InventoryManagement: React.FC<InventoryManagementProps> = ({
                 </div>
 
                 <div>
+                  <label className="block font-bold mb-1">Barcode / SKU</label>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      name="barcode"
+                      id="product-barcode-input"
+                      placeholder="e.g. 8901234567890"
+                      className="w-full px-3 py-2 pr-10 rounded-xl border border-[#D5C7B8] focus:ring-2 focus:ring-[#E76F51] focus:outline-hidden"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        // Show barcode scanner modal to scan and populate the input
+                        setScanForProductForm(true);
+                        setShowQuickScanner(true);
+                      }}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 rounded-lg bg-[#E76F51]/10 hover:bg-[#E76F51]/20 text-[#E76F51] transition-colors"
+                      title="Scan Barcode"
+                    >
+                      <Camera className="w-4 h-4" />
+                    </button>
+                  </div>
+                  <p className="text-[10px] text-[#7C9082] mt-0.5">For POS scanning & inventory tracking</p>
+                </div>
+
+                <div>
+                  <label className="block font-bold mb-1">Unit of Measurement *</label>
+                  <input
+                    type="text"
+                    name="unit"
+                    defaultValue="packet"
+                    placeholder="e.g. 15kg, 85g pouch, can"
+                    className="w-full px-3 py-2 rounded-xl border border-[#D5C7B8] focus:ring-2 focus:ring-[#E76F51] focus:outline-hidden"
+                  />
+                </div>
+
+                <div>
                   <label className="block font-bold mb-1">Category *</label>
                   <select
                     value={newProdCategory}
@@ -1462,14 +1500,14 @@ export const InventoryManagement: React.FC<InventoryManagementProps> = ({
                 </div>
 
                 <div>
-                  <label className="block font-bold mb-1">Unit of Measurement *</label>
+                  <label className="block font-bold mb-1">SKU Code</label>
                   <input
                     type="text"
-                    name="unit"
-                    defaultValue="packet"
-                    placeholder="e.g. 15kg, 85g pouch, can"
+                    name="sku"
+                    placeholder="e.g. DF-RC-001"
                     className="w-full px-3 py-2 rounded-xl border border-[#D5C7B8] focus:ring-2 focus:ring-[#E76F51] focus:outline-hidden"
                   />
+                  <p className="text-[10px] text-[#7C9082] mt-0.5">Internal product code (auto-generated if empty)</p>
                 </div>
               </div>
 
@@ -1971,43 +2009,60 @@ export const InventoryManagement: React.FC<InventoryManagementProps> = ({
       {/* QUICK BARCODE SCANNER MODAL */}
       <BarcodeScannerModal
         isOpen={showQuickScanner}
-        onClose={() => setShowQuickScanner(false)}
+        onClose={() => {
+          setShowQuickScanner(false);
+          setScanForProductForm(false);
+        }}
         continuous={false}
-        title="Scan Barcode to Filter Inventory"
-        subtitle="Point camera or enter product barcode to locate in stock"
+        title={scanForProductForm ? "Scan Product Barcode" : "Scan Barcode to Filter Inventory"}
+        subtitle={scanForProductForm ? "Scan or enter barcode to auto-fill product registration" : "Point camera or enter product barcode to locate in stock"}
         demoBarcodes={products.filter((p) => Boolean(p.barcode)).slice(0, 8).map((p) => ({ barcode: p.barcode, name: p.name }))}
         onScan={(scanned) => {
-          // Reset restrictive filters so the scanned item is not hidden
-          setSelectedCompany('ALL');
-          setSelectedCategory('ALL');
-          setSelectedProductForm('ALL');
-          setSelectedStockStatus('ALL');
-          setSearchQuery(scanned);
-          setShowQuickScanner(false);
-
-          // Normalize and check if product exists in catalog
-          const cleanNorm = scanned.replace(/[-\s]/g, '').toLowerCase();
-          const found = products.find((p) => {
-            const pb = (p.barcode || '').trim().toLowerCase();
-            const pbNorm = pb.replace(/[-\s]/g, '');
-            const skuNorm = (p.sku || '').trim().toLowerCase().replace(/[-\s]/g, '');
-            return (
-              pb === cleanNorm ||
-              pbNorm === cleanNorm ||
-              skuNorm === cleanNorm ||
-              (pbNorm.length === 12 && cleanNorm === '0' + pbNorm) ||
-              (cleanNorm.length === 12 && pbNorm === '0' + cleanNorm)
-            );
-          });
-
-          if (found) {
-            const companyKey = found.company || found.brand || 'General';
-            setCollapsedCompanies((prev) => ({ ...prev, [companyKey]: false }));
-            setFeedbackMsg(`✅ Found: "${found.name}" (Barcode: ${scanned})`);
+          if (scanForProductForm) {
+            // Populate the barcode input field in product registration form
+            const barcodeInput = document.getElementById('product-barcode-input') as HTMLInputElement;
+            if (barcodeInput) {
+              barcodeInput.value = scanned;
+              barcodeInput.focus();
+            }
+            setShowQuickScanner(false);
+            setScanForProductForm(false);
+            setFeedbackMsg(`✅ Barcode scanned: ${scanned}`);
+            setTimeout(() => setFeedbackMsg(''), 3000);
           } else {
-            setFeedbackMsg(`🔍 Filtered by barcode: "${scanned}". (No exact match in catalog)`);
+            // Original inventory filter logic
+            // Reset restrictive filters so the scanned item is not hidden
+            setSelectedCompany('ALL');
+            setSelectedCategory('ALL');
+            setSelectedProductForm('ALL');
+            setSelectedStockStatus('ALL');
+            setSearchQuery(scanned);
+            setShowQuickScanner(false);
+
+            // Normalize and check if product exists in catalog
+            const cleanNorm = scanned.replace(/[-\s]/g, '').toLowerCase();
+            const found = products.find((p) => {
+              const pb = (p.barcode || '').trim().toLowerCase();
+              const pbNorm = pb.replace(/[-\s]/g, '');
+              const skuNorm = (p.sku || '').trim().toLowerCase().replace(/[-\s]/g, '');
+              return (
+                pb === cleanNorm ||
+                pbNorm === cleanNorm ||
+                skuNorm === cleanNorm ||
+                (pbNorm.length === 12 && cleanNorm === '0' + pbNorm) ||
+                (cleanNorm.length === 12 && pbNorm === '0' + cleanNorm)
+              );
+            });
+
+            if (found) {
+                const companyKey = found.company || found.brand || 'General';
+              setCollapsedCompanies((prev) => ({ ...prev, [companyKey]: false }));
+              setFeedbackMsg(`✅ Found: "${found.name}" (Barcode: ${scanned})`);
+            } else {
+              setFeedbackMsg(`🔍 Filtered by barcode: "${scanned}". (No exact match in catalog)`);
+            }
+            setTimeout(() => setFeedbackMsg(''), 4500);
           }
-          setTimeout(() => setFeedbackMsg(''), 4500);
         }}
       />
 
