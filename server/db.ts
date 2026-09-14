@@ -2113,6 +2113,23 @@ class PetWorldDatabase {
     return staff;
   }
 
+  public deleteStaff(id: string): void {
+    const index = this.data.staff.findIndex((s) => s.id === id);
+    if (index === -1) throw new Error('Staff not found');
+    
+    // Remove the staff member
+    this.data.staff.splice(index, 1);
+    
+    // Optionally: Clean up related data (attendance, salary records, etc.)
+    // Remove attendance records for this staff member
+    this.data.attendance = this.data.attendance.filter((a) => a.staffId !== id);
+    
+    // Remove salary records for this staff member
+    this.data.salaryRecords = this.data.salaryRecords.filter((s) => s.staffId !== id);
+    
+    this.persist();
+  }
+
   // Attendance
   public getAttendance(filters?: { branchId?: string; date?: string }): AttendanceRecord[] {
     let list = this.data.attendance;

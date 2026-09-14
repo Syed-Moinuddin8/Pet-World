@@ -344,6 +344,13 @@ export default function App() {
     return updated;
   };
 
+  const handleDeleteStaff = async (staffId: string) => {
+    await apiFetch(`/api/staff/${staffId}`, {
+      method: 'DELETE',
+    });
+    setStaffList((prev) => prev.filter((s) => s.id !== staffId));
+  };
+
   const handleCheckIn = async (remarks?: string) => {
     const rec = await apiFetch<AttendanceRecord>('/api/attendance/check-in', {
       method: 'POST',
@@ -669,6 +676,7 @@ export default function App() {
             currentUser={currentUser}
             onCreateStaff={handleCreateStaff}
             onUpdateStaff={handleUpdateStaff}
+            onDeleteStaff={handleDeleteStaff}
           />
         )}
 

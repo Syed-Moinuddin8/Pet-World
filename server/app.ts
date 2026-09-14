@@ -837,6 +837,19 @@ app.put('/api/staff/:id', (req, res) => {
   }
 });
 
+app.delete('/api/staff/:id', (req, res) => {
+  try {
+    const user = getRequestUser(req);
+    if (user.role !== 'OWNER') {
+      return res.status(403).json({ error: 'Only Owner can delete staff members.' });
+    }
+    db.deleteStaff(req.params.id);
+    res.json({ success: true, message: 'Staff member deleted successfully' });
+  } catch (err: any) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
 // Attendance
 app.get('/api/attendance', (req, res) => {
   const { branchId, date } = req.query as Record<string, string>;
